@@ -44,23 +44,52 @@ class GMC:
 
     
 class GMCM:
-    def __init__(self, n_dims, data_in, forward_transform=None, marginals_list=None, gmc=None):
+    def __init__(self, 
+                 n_dims, 
+                 data_in, 
+                 log_transform_data=True, 
+                 data_split=[0.7, 0.3], 
+                 marginals_list=None, 
+                 gmc=None):
+        
         self.ndims = n_dims
-        self.data_transform = forward_transform
-        self.gmc = gmc
-        if gmc is not None:
-            self.ncomps = gmc.ncomps
-        
-        if forward_transform is not None:
-            data_in = forward_transform.inverse(data_in).numpy()
         self.data_in = data_in
+        self.gmc = gmc
+        if gmc:
+            self.ncomps = gmc.ncomps
+            
+        # Transforming input data if specified 
+        if log_transform_data:
+            min_val = np.min(data_in).astype('float32')-1
+            self.log_transform = tfb.Chain([tfb.Shift(shift=min_val.astype('float32')),tfb.Exp()])
+        else:
+            self.log_transform = None
+        # transform the input data via the bijector
+        transformed_data = self.log_transform.inverse(data_in).numpy() if self.log_transform else data_in
         
+        # Splitting the data into Training, Testing and Validation set
+        if len(data_split)==2:
+            num_trn=round(transformed_data.shape[0]*data_split[0])
+            num_tst=round(transformed_data.shape[0]*data_split[1])
+            num_vld=0
+        elif len(data_split)==3:
+            num_trn=round(transformed_data.shape[0]*data_split[0])
+            num_tst=round(transformed_data.shape[0]*data_split[1])
+            num_vld=round(transformed_data.shape[0]*data_split[2])    
+        # splitting the data in training, testing and validation sets
+        np.random.shuffle(transformed_data)
+        data_trn,data_tst,data_vld,_ = np.split(transformed_data,np.cumsum([num_trn,num_tst,num_vld]))
+        # saving different datasets as properties
+        self.data_trn = data_trn
+        self.data_tst = data_tst
+        self.data_vld = data_vld
+        
+        # Learn the marginal if not pre-specified (as lists) 
         if marginals_list is None:
             print('Learning Marginals')
             ts = time.time()
             marginals_list = self.learn_marginals()
             print(f'Marginals learnt in {np.round(time.time()-ts,2)} s.') 
-        
         self.marg_dists = marginals_list
         self.marg_bijector = Marginal_transform(self.ndims,self.marg_dists)       
         
@@ -68,8 +97,8 @@ class GMCM:
     def distribution(self):
         # setting the gmcm distribution as a transformed distribution of gmc_distribution
         gmcm_dist = tfd.TransformedDistribution(distribution=self.gmc.distribution,bijector=self.marg_bijector)
-        if self.data_transform is not None:
-            gmcm_dist = tfd.TransformedDistribution(distribution=gmcm_dist,bijector=self.data_transform)
+        if self.log_transform:
+            gmcm_dist = tfd.TransformedDistribution(distribution=gmcm_dist,bijector=self.log_transform)
         return gmcm_dist
     
     
@@ -77,7 +106,7 @@ class GMCM:
         # fitting marginal distributions first
         marg_dist_list=[]
         for j in range(self.ndims):
-            input_vector = self.data_in[:,j].reshape(-1,1)
+            input_vector = self.data_trn[:,j].reshape(-1,1)
             marg_gmm_obj = utl.GMM_best_fit(input_vector,max_ncomp=10)
             marg_gmm_tfp = tfd.MixtureSameFamily(
                 mixture_distribution=tfd.Categorical(probs=marg_gmm_obj.weights_.flatten().astype('float32')),
@@ -91,15 +120,14 @@ class GMCM:
                        'ub':tf.reduce_max(input_vector)+3*tfp.stats.stddev(input_vector)                         
                       }
             
-            marg_dist_list.append(info_dict)
-        
+            marg_dist_list.append(info_dict)     
         return marg_dist_list
         
     def init_GMC_params(self,initialization=['random',None]):
         # Initializing the GMC params 
         init_method, seed_val = initialization
         if init_method == 'random':
-            if seed_val is not None:
+            if seed_val:
                 np.random.seed(seed_val)
             alphas = tf.ones(self.ncomps)/self.ncomps
             mus = tf.constant(np.random.randn(self.ncomps,self.ndims).astype('float32'))
@@ -109,7 +137,7 @@ class GMCM:
                                           covariance_type='full',
                                           max_iter=1000,
                                           n_init=5)
-            gmm.fit(self.data_in)
+            gmm.fit(self.data_trn)
             alphas = gmm.weights_.astype('float32')
             mus = gmm.means_.astype('float32')
             covs = gmm.covariances_.astype('float32')                                                            
@@ -122,10 +150,19 @@ class GMCM:
         return init_params
     
     
-    def fit_GMC_dist(self, n_comps, optimizer = tf.optimizers.Adam(learning_rate=1E-2), initialization = ['random',None], max_iters = 1000, batch_size = 10, print_interval=100, regularize=True, plot_results = False):
+    def fit_dist(self, 
+                 n_comps, 
+                 optimizer = tf.optimizers.Adam(learning_rate=1E-2), 
+                 initialization = ['random',None], 
+                 max_iters = 1000, 
+                 batch_size = 10, 
+                 print_interval=100, 
+                 regularize=True, 
+                 plot_results = False):
+        
         self.ncomps = n_comps
         # getting the marginal CDF values
-        u_mat = self.marg_bijector.inverse(self.data_in)
+        u_mat = self.marg_bijector.inverse(self.data_trn)
         # initializing the parameters
         gmc_params = self.init_GMC_params(initialization=initialization)
         # instantiation GMC object
@@ -204,7 +241,7 @@ class GMCM:
         # creating the marginal gmcm object
         marg_gmcm_dist = GMCM(len(dim_list), 
                               data_in_new, 
-                              forward_transform=self.data_transform, 
+                              log_transform=self.log_transform, 
                               marginals_list=marg_list_new, 
                               gmc=marg_gmc)
         return marg_gmcm_dist   
