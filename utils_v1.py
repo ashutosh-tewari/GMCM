@@ -8,6 +8,24 @@ from sklearn import mixture
 import math as m
 from scipy import interpolate
 
+
+# Function to split the data in training, testing and validation sets
+def splitData(data,split_fracs=[0.7,0.2,0.1]):
+    n_data_points=data.shape[0]
+    if len(split_fracs)==2:
+        num_trn=round(n_data_points*split_fracs[0])
+        num_vld=round(n_data_points*split_fracs[1])
+        num_tst=0
+    elif len(split_fracs)==3:
+        num_trn=round(n_data_points*split_fracs[0])
+        num_vld=round(n_data_points*split_fracs[1])
+        num_tst=round(n_data_points*split_fracs[2])    
+
+    # splitting the data in training, testing and validation sets
+    np.random.shuffle(data)
+    data_trn,data_vld,data_tst,_ = np.split(data,np.cumsum([num_trn,num_vld,num_tst]))
+    return data_trn,data_vld,data_tst
+
 # Function to compute numerical gradient using central finite difference
 def gradientFiniteDifferent(func,theta,delta=1E-4):
     n = np.size(theta)
@@ -88,3 +106,24 @@ def gmm_params2vec(n_dims,n_comps,alphas,mu_vectors,cov_matrices):
         param_list.append(tfb.FillScaleTriL(diag_bijector=tfb.Exp()).inverse(chol_mat))
     param_vec = tf.concat(param_list,axis=0)
     return param_vec
+
+def fitMargNonParam(x1_array):
+    x1_array_sorted = np.zeros_like(x1_array)
+    u1_array = np.zeros_like(x1_array)
+#     x2_array = np.zeros_like(x1_array)
+#     u2_array = np.zeros_like(x1_array)
+    nsamps,ndims = x1_array.shape
+    for j in range(ndims):
+        curr_obs = x1_array[:,j] + np.random.normal(0,1E-6,nsamps) # adding a small noise to maintain unique ness of samples
+        ranks = np.empty_like(curr_obs)
+        ranks[np.argsort(curr_obs)] = np.arange(nsamps)
+        x1_array_sorted[:,j] = np.sort(curr_obs)
+        u1_array[:,j] = ranks/(nsamps-1)
+#         x2_array[:,j] = np.linspace(np.min(curr_obs),np.max(curr_obs),nsamps)
+#         u2_array[:,j] = scipy_interp1d(x2_array[:,j],curr_obs,u1_array[:,j],method='linear')
+#     # specifying non-parametric marginals as a dict
+#     marg_params = {'u_range': [np.min(u1_array,axis=0), np.max(u1_array,axis=0)], \
+#                     'x_values': x1_array_sorted,\
+#                     'x_range': [np.min(x2_array,axis=0),np.max(x2_array,axis=0)], \
+#                     'u_values': u2_array}    
+    return u1_array

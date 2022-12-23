@@ -14,7 +14,7 @@ class GMC:
         self.ncomps = n_comps   
         self.total_trainable_params = int(n_comps*(1+n_dims+0.5*n_dims*(n_dims+1)))
         self.params = param_vec
-        if self.params:
+        if self.params is not None:
             assert tf.size(self.params) == self.total_trainable_params, 'the supplied parameter vector is not commensurate with the n_dims, and n_comps'
             self.params = param_vec
         
@@ -62,7 +62,9 @@ class GMC:
             gmm.fit(data)
             alphas = gmm.weights_.astype('float32')
             mus = gmm.means_.astype('float32')
-            covs = gmm.covariances_.astype('float32')                                                            
+            covs = gmm.covariances_.astype('float32')     
+        elif init_method == 'params':
+            alphas,mus,covs=initialization[1]
         
         # changing the parameters to standardize the resulting gmm
         alphas,mus,covs = utl.standardize_gmm_params(alphas,mus,covs)
@@ -73,7 +75,7 @@ class GMC:
     def fit_dist(self,
                  u_mat,
                  n_comps, 
-                 optimizer = tf.optimizers.Adam(learning_rate=1E-2), 
+                 optimizer = tf.optimizers.Adam(learning_rate=1E-3), 
                  max_iters = 1000, 
                  batch_size = 10, 
                  print_interval=100, 
@@ -100,15 +102,10 @@ class GMC:
             grads = tape.gradient(total_cost, self.params)
             if not (tf.reduce_any(tf.math.is_nan(grads)) or tf.reduce_any(tf.math.is_inf(grads))):
                 optimizer.apply_gradients(zip([grads], [self.params])) #updating the gmc parameters
-            return neg_gmc_ll,ident_prior[0],ident_prior[1]
+            return neg_gmc_ll
 
         neg_ll_trn = np.empty(max_iters)  
         neg_ll_trn[:] = np.NaN
-        neg_prior_1 = np.empty(max_iters)  
-        neg_prior_1[:] = np.NaN
-        neg_prior_2 = np.empty(max_iters)  
-        neg_prior_2[:] = np.NaN
-        np.random.seed(10)
         ts = time.time() # start time
         # Optimization iterations
         for itr in np.arange(max_iters):
@@ -117,13 +114,11 @@ class GMC:
             samps_idx = np.random.choice(u_mat.shape[0],batch_size)
             u_selected_trn = tf.gather(u_mat,samps_idx)
             out = train_step(u_selected_trn)
-            neg_ll_trn[itr] = out[0].numpy()
-            neg_prior_1[itr] = out[1].numpy()
-            neg_prior_2[itr] = out[2].numpy()    
+            neg_ll_trn[itr] = out.numpy()
             # Printing results every 100 iteration    
             if tf.equal(itr%print_interval,0) or tf.equal(itr,0):
                 time_elapsed = np.round(time.time()-ts,1)
-                print(f'@ Iter:{itr}, Training error: {neg_ll_trn[itr]}, LogPriors: {np.round(neg_prior_1[itr],2), np.round(neg_prior_2[itr],2)}, Time Elapsed: {time_elapsed} s')    
+                print(f'@ Iter:{itr}, Training error: {neg_ll_trn[itr]}, Time Elapsed: {time_elapsed} s')    
         
         if plot_results:
             # Plotting results
@@ -139,62 +134,29 @@ class GMC:
 class GMCM:
     def __init__(self, 
                  n_dims, 
-#                  data_in, 
-                 log_transform_data=True, 
-#                  data_split=[0.7, 0.3], 
+                 data_transform=None, 
                  marginals_list=None, 
                  gmc=None):
         
         self.ndims = n_dims
-#         self.data_in = data_in
-        self.log_transform_data=log_transform_data
+        self.preproc_transform=data_transform   
         self.marg_dists=marginals_list
         self.gmc = gmc
+        
+        # if marginal distributions are already specified, define the marginal bijector
+        if self.marg_dists is not None:
+            self.marg_bijector = Marginal_transform(self.ndims,self.marg_dists)
+        # verifying if the gmc parameterization is consitent with the specified gmcm 
         if self.gmc:
             assert n_dims==self.gmc.ndims, 'GMC object dimensions should match the specified GMCM dimension'
             self.ncomps = self.gmc.ncomps
-            
-#         # Transforming input data if specified 
-#         if log_transform_data:
-#             min_val = np.min(data_in).astype('float32')-1
-#             self.log_transform = tfb.Chain([tfb.Shift(shift=min_val.astype('float32')),tfb.Exp()])
-#         else:
-#             self.log_transform = None
-#         # transform the input data via the bijector
-#         transformed_data = self.log_transform.inverse(data_in).numpy() if self.log_transform else data_in
-        
-#         # Splitting the data into Training, Testing and Validation set
-#         if len(data_split)==2:
-#             num_trn=round(transformed_data.shape[0]*data_split[0])
-#             num_tst=round(transformed_data.shape[0]*data_split[1])
-#             num_vld=0
-#         elif len(data_split)==3:
-#             num_trn=round(transformed_data.shape[0]*data_split[0])
-#             num_tst=round(transformed_data.shape[0]*data_split[1])
-#             num_vld=round(transformed_data.shape[0]*data_split[2])    
-#         # splitting the data in training, testing and validation sets
-#         np.random.shuffle(transformed_data)
-#         data_trn,data_tst,data_vld,_ = np.split(transformed_data,np.cumsum([num_trn,num_tst,num_vld]))
-#         # saving different datasets as properties
-#         self.data_trn = data_trn
-#         self.data_tst = data_tst
-#         self.data_vld = data_vld
-        
-#         # Learn the marginal if not pre-specified (as lists) 
-#         if marginals_list is None:
-#             print('Learning Marginals')
-#             ts = time.time()
-#             marginals_list = self.learn_marginals()
-#             print(f'Marginals learnt in {np.round(time.time()-ts,2)} s.') 
-#         self.marg_dists = marginals_list
-#         self.marg_bijector = Marginal_transform(self.ndims,self.marg_dists)       
-        
+                  
     @property
     def distribution(self):
         # setting the gmcm distribution as a transformed distribution of gmc_distribution
         gmcm_dist = tfd.TransformedDistribution(distribution=self.gmc.distribution,bijector=self.marg_bijector)
-        if self.log_transform:
-            gmcm_dist = tfd.TransformedDistribution(distribution=gmcm_dist,bijector=self.log_transform)
+        if self.preproc_transform:
+            gmcm_dist = tfd.TransformedDistribution(distribution=gmcm_dist,bijector=self.preproc_transform)
         return gmcm_dist
     
     
@@ -219,38 +181,12 @@ class GMCM:
             marg_dist_list.append(info_dict)     
         return marg_dist_list
         
-#     def init_GMC_params(self,initialization=['random',None]):
-#         # Initializing the GMC params 
-#         init_method, seed_val = initialization
-#         if init_method == 'random':
-#             if seed_val:
-#                 np.random.seed(seed_val)
-#             alphas = tf.ones(self.ncomps)/self.ncomps
-#             mus = tf.constant(np.random.randn(self.ncomps,self.ndims).astype('float32'))
-#             covs = tf.repeat(tf.expand_dims(tf.eye(self.ndims),0),self.ncomps,axis=0)
-#         elif init_method == 'gmm':            
-#             gmm = mixture.GaussianMixture(n_components=self.ncomps,
-#                                           covariance_type='full',
-#                                           max_iter=1000,
-#                                           n_init=5)
-#             gmm.fit(self.data_trn)
-#             alphas = gmm.weights_.astype('float32')
-#             mus = gmm.means_.astype('float32')
-#             covs = gmm.covariances_.astype('float32')                                                            
-        
-#         # changing the parameters to standardize the resulting gmm
-#         alphas,mus,covs = utl.standardize_gmm_params(alphas,mus,covs)
-#         # now initializing trainable parameters
-#         init_params = tf.Variable(utl.gmm_params2vec(self.ndims,self.ncomps,alphas,mus,covs))
-        
-#         return init_params
-    
     
     def fit_dist_IFM(self,                        
-                     data_in,
+                     data_trn,
                      n_comps, 
-                     data_split=[0.75,0.25],
-                     optimizer = tf.optimizers.Adam(learning_rate=1E-2), 
+                     data_vld=None,
+                     optimizer = tf.optimizers.Adam(learning_rate=1E-3), 
                      initialization = ['random',None], 
                      max_iters = 1000, 
                      batch_size = 10, 
@@ -258,34 +194,17 @@ class GMCM:
                      regularize=True, 
                      plot_results = False):
         
+        # transform the data via the bijector
+        if self.preproc_transform: 
+            data_trn = self.preproc_transform.inverse(data_trn).numpy() 
+            if data_vld: 
+                data_vld = self.data_transform.preproc_transform(data_vld).numpy()
         
-        # Transforming input data if specified 
-        if self.log_transform_data:
-            min_val = np.min(data_in).astype('float32')-1
-            self.log_transform = tfb.Chain([tfb.Shift(shift=min_val.astype('float32')),tfb.Exp()])
-        else:
-            self.log_transform = None
-        # transform the input data via the bijector
-        transformed_data = self.log_transform.inverse(data_in).numpy() if self.log_transform else data_in
-        
-        # Splitting the data into Training, Testing and Validation set
-        if len(data_split)==2:
-            num_trn=round(transformed_data.shape[0]*data_split[0])
-            num_tst=round(transformed_data.shape[0]*data_split[1])
-            num_vld=0
-        elif len(data_split)==3:
-            num_trn=round(transformed_data.shape[0]*data_split[0])
-            num_tst=round(transformed_data.shape[0]*data_split[1])
-            num_vld=round(transformed_data.shape[0]*data_split[2])    
-        # splitting the data in training, testing and validation sets
-        np.random.shuffle(transformed_data)
-        data_trn,data_tst,data_vld,_ = np.split(transformed_data,np.cumsum([num_trn,num_tst,num_vld]))
         # saving different datasets as properties
         self.data_trn = data_trn
-        self.data_tst = data_tst
         self.data_vld = data_vld
         
-        # Learn the marginal if not pre-specified (as lists) 
+        # Learn the marginal first (if not already pre-specified) 
         if self.marg_dists is None:
             print('Learning Marginals')
             ts = time.time()
@@ -296,75 +215,21 @@ class GMCM:
         
         self.ncomps = n_comps
         # getting the marginal CDF values
-        u_mat = self.marg_bijector.inverse(self.data_trn)
-                
-#         # initializing the parameters
-#         gmc_params = self.init_GMC_params(initialization=initialization)
-#         # instantiation GMC object
-#         gmc_obj = GMC(self.ndims,self.ncomps,gmc_params)
+        u_mat_trn = self.marg_bijector.inverse(self.data_trn)
 
         gmc_obj=GMC(self.ndims,self.ncomps)
         gmc_obj.init_params()
-        neg_ll_trn=gmc_obj.fit_dist(u_mat,
-                        n_comps, 
-                        optimizer = tf.optimizers.Adam(learning_rate=1E-2), 
-                        max_iters = 1000, 
-                        batch_size = 10, 
-                        print_interval=100, 
-                        regularize=True, 
-                        plot_results = False)
+        neg_ll_trn=gmc_obj.fit_dist(u_mat_trn,
+                                    n_comps, 
+                                    optimizer = optimizer, 
+                                    max_iters = max_iters, 
+                                    batch_size = batch_size, 
+                                    print_interval = print_interval, 
+                                    regularize = regularize, 
+                                    plot_results = plot_results)
         # setting gmc distritbution embedded inside GMCM
         self.gmc=gmc_obj
         
-#         # Defining the training step
-#         @tf.function
-#         def train_step(u_selected):
-#             with tf.GradientTape() as tape:
-#                 neg_gmc_ll = -tf.reduce_mean(gmc_obj.distribution.log_prob(u_selected))
-#                 ident_prior = gmc_obj.identifiability_prior
-#                 if regularize:
-#                     total_cost = neg_gmc_ll - tf.reduce_sum(ident_prior)
-#                 else:
-#                     total_cost = neg_gmc_ll
-                    
-#             grads = tape.gradient(total_cost, gmc_obj.params)
-#             if not (tf.reduce_any(tf.math.is_nan(grads)) or tf.reduce_any(tf.math.is_inf(grads))):
-#                 optimizer.apply_gradients(zip([grads], [gmc_obj.params])) #updating the gmc parameters
-#             return neg_gmc_ll,ident_prior[0],ident_prior[1]
-
-#         neg_ll_trn = np.empty(max_iters)  
-#         neg_ll_trn[:] = np.NaN
-#         neg_prior_1 = np.empty(max_iters)  
-#         neg_prior_1[:] = np.NaN
-#         neg_prior_2 = np.empty(max_iters)  
-#         neg_prior_2[:] = np.NaN
-#         np.random.seed(10)
-#         ts = time.time() # start time
-#         # Optimization iterations
-#         for itr in np.arange(max_iters):
-#             np.random.seed(itr)
-#             # Executing a training step
-#             samps_idx = np.random.choice(u_mat.shape[0],batch_size)
-#             u_selected_trn = tf.gather(u_mat,samps_idx)
-#             out = train_step(u_selected_trn)
-#             neg_ll_trn[itr] = out[0].numpy()
-#             neg_prior_1[itr] = out[1].numpy()
-#             neg_prior_2[itr] = out[2].numpy()    
-#             # Printing results every 100 iteration    
-#             if tf.equal(itr%print_interval,0) or tf.equal(itr,0):
-#                 time_elapsed = np.round(time.time()-ts,1)
-#                 print(f'@ Iter:{itr}, Training error: {neg_ll_trn[itr]}, LogPriors: {np.round(neg_prior_1[itr],2), np.round(neg_prior_2[itr],2)}, Time Elapsed: {time_elapsed} s')    
-        
-#         if plot_results:
-#             # Plotting results
-#             plt.plot(neg_ll_trn)
-#             plt.xlabel('Iteration',fontsize=12)
-#             plt.ylabel('Neg_logLike',fontsize=12)
-#             plt.legend(['train'],fontsize=12)
-        
-#         # setting gmc distritbution embedded inside GMCM
-#         self.gmc = gmc_obj
-         
         return neg_ll_trn
     
     def get_marginal(self,dim_list):        
