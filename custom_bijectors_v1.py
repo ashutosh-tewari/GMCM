@@ -121,7 +121,13 @@ class Marginal_transform(tfb.Bijector):
     def _forward(self, u_mat):
         temp_array = tf.TensorArray(tf.float32,size=self.ndims)
         for j in range(self.ndims):
-            x_cur = utl.icdf_numerical(u_mat[:,j], self.marg_dists[j]['cdf'],self.marg_dists[j]['lb'],self.marg_dists[j]['ub'])
+            if 'icdf' in self.marg_dists[j]:
+                x_cur = self.marg_dists[j]['icdf'](u_mat[:,j])
+            else:
+                x_cur = utl.icdf_numerical(u_mat[:,j], 
+                                       self.marg_dists[j]['cdf'],
+                                       self.marg_dists[j]['lb'],
+                                       self.marg_dists[j]['ub'])
             temp_array = temp_array.write(j,x_cur)
         x_mat = tf.transpose(temp_array.stack())              
         return x_mat
