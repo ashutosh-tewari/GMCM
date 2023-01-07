@@ -73,8 +73,9 @@ class GMC:
         self.params=param_vec
         
     def fit_dist(self,
-                 u_mat,
+                 u_mat_train,
                  n_comps, 
+                 u_mat_valid=None,
                  optimizer = tf.optimizers.Adam(learning_rate=1E-3), 
                  max_iters = 1000, 
                  batch_size = 10, 
@@ -103,31 +104,53 @@ class GMC:
             if not (tf.reduce_any(tf.math.is_nan(grads)) or tf.reduce_any(tf.math.is_inf(grads))):
                 optimizer.apply_gradients(zip([grads], [self.params])) #updating the gmc parameters
             return neg_gmc_ll
+        
+        # Defining the validation step
+        @tf.function
+        def valid_step(u_valid):
+            neg_gmc_ll = -tf.reduce_mean(self.distribution.log_prob(u_valid))
+            return neg_gmc_ll - tf.reduce_sum(self.identifiability_prior) if regularize else neg_gmc_ll
 
         neg_ll_trn = np.empty(max_iters)  
         neg_ll_trn[:] = np.NaN
+        neg_ll_vld = np.empty(max_iters)  
+        neg_ll_vld[:] = np.NaN
         ts = time.time() # start time
+        
+        patience,last_vld_err=0,float('inf')
         # Optimization iterations
         for itr in np.arange(max_iters):
+            if patience>5: break # early termination 
             np.random.seed(itr)
             # Executing a training step
-            samps_idx = np.random.choice(u_mat.shape[0],batch_size)
-            u_selected_trn = tf.gather(u_mat,samps_idx)
-            out = train_step(u_selected_trn)
-            neg_ll_trn[itr] = out.numpy()
+            samps_idx = np.random.choice(u_mat_train.shape[0],batch_size)
+            u_selected_trn = tf.gather(u_mat_train,samps_idx)
+            neg_ll_trn[itr] = train_step(u_selected_trn).numpy()
             # Printing results every 100 iteration    
             if tf.equal(itr%print_interval,0) or tf.equal(itr,0):
+                if u_mat_valid is not None: 
+                    neg_ll_vld[itr] = valid_step(u_mat_valid).numpy()
+                    if neg_ll_vld[itr]>last_vld_err: 
+                        patience+=1
+                    else:
+                        patience=0
+                    last_vld_err=neg_ll_vld[itr]
+                       
                 time_elapsed = np.round(time.time()-ts,1)
-                print(f'@ Iter:{itr}, Training error: {neg_ll_trn[itr]}, Time Elapsed: {time_elapsed} s')    
+                print(f'@ Iter:{itr}, \
+                        Training error: {np.round(neg_ll_trn[itr],1)}, \
+                        Validation error: {np.round(neg_ll_vld[itr],1)}, \
+                        Time Elapsed: {time_elapsed} s')    
         
         if plot_results:
             # Plotting results
             plt.plot(neg_ll_trn)
+            plt.plot(neg_ll_vld)
             plt.xlabel('Iteration',fontsize=12)
             plt.ylabel('Neg_logLike',fontsize=12)
             plt.legend(['train'],fontsize=12)
          
-        return neg_ll_trn
+        return neg_ll_trn, neg_ll_vld
     
 
     
@@ -165,7 +188,7 @@ class GMCM:
         marg_dist_list=[]
         for j in range(self.ndims):
             input_vector = self.data_trn[:,j].reshape(-1,1)
-            marg_gmm_obj = utl.GMM_best_fit(input_vector,max_ncomp=10)
+            marg_gmm_obj = utl.GMM_best_fit(input_vector,min_ncomp=1,max_ncomp=12)
             marg_gmm_tfp = tfd.MixtureSameFamily(
                 mixture_distribution=tfd.Categorical(probs=marg_gmm_obj.weights_.flatten().astype('float32')),
                 components_distribution=tfd.Normal(loc=marg_gmm_obj.means_.flatten().astype('float32'),
@@ -197,8 +220,8 @@ class GMCM:
         # transform the data via the bijector
         if self.preproc_transform: 
             data_trn = self.preproc_transform.inverse(data_trn).numpy() 
-            if data_vld: 
-                data_vld = self.data_transform.preproc_transform(data_vld).numpy()
+            if data_vld is not None: 
+                data_vld = self.preproc_transform.inverse(data_vld).numpy()
         
         # saving different datasets as properties
         self.data_trn = data_trn
@@ -219,8 +242,9 @@ class GMCM:
 
         gmc_obj=GMC(self.ndims,self.ncomps)
         gmc_obj.init_params()
-        neg_ll_trn=gmc_obj.fit_dist(u_mat_trn,
+        neg_ll_trn,neg_ll_vld=gmc_obj.fit_dist(u_mat_trn,
                                     n_comps, 
+                                    u_mat_valid=data_vld,
                                     optimizer = optimizer, 
                                     max_iters = max_iters, 
                                     batch_size = batch_size, 
@@ -230,7 +254,7 @@ class GMCM:
         # setting gmc distritbution embedded inside GMCM
         self.gmc=gmc_obj
         
-        return neg_ll_trn
+        return neg_ll_trn, neg_ll_vld
     
     def get_marginal(self,dim_list):        
         data_in_new = tf.gather(self.data_in,dim_list,axis=1).numpy()

@@ -40,6 +40,10 @@ def gradientFiniteDifferent(func,theta,delta=1E-4):
         grad[i] = (f_plus-f_minus)/(2*delta)
     return grad
 
+# moving average of an array
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'valid') / w
+
 # Numerically finding the icdf values for a distribution whos analytical CDF is specified
 def icdf_numerical(u,cdf_funct,lb,ub):
     # setting up the numerical method (Chandrupatla root finding algorithm) to find icdf
@@ -49,10 +53,10 @@ def icdf_numerical(u,cdf_funct,lb,ub):
     return x
 
 
-def GMM_best_fit(samples,max_ncomp=10, print_info=False):
+def GMM_best_fit(samples,min_ncomp=1,max_ncomp=10, print_info=False):
     lowest_bic = np.infty
     bic = []
-    for n_components in range(max_ncomp):
+    for n_components in range(min_ncomp, max_ncomp+1):
         # Fit a Gaussian mixture with EM
         gmm = mixture.GaussianMixture(n_components=n_components+1,covariance_type='full',max_iter=200,n_init=5)
         gmm.fit(samples)
