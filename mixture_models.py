@@ -6,6 +6,8 @@ tfb=tfp.bijectors
 import time
 import utils_v1 as utl
 from custom_bijectors_v1 import Marginal_transform, GMC_bijector
+from sklearn import mixture
+
 
 # Defining GMC class
 class GMC:
@@ -53,6 +55,7 @@ class GMC:
             alphas = tf.ones(self.ncomps)/self.ncomps
             mus = tf.constant(np.random.randn(self.ncomps,self.ndims).astype('float32'))
             covs = tf.repeat(tf.expand_dims(tf.eye(self.ndims),0),self.ncomps,axis=0)
+            chols = tf.repeat(tf.expand_dims(tf.eye(self.ndims),0),self.ncomps,axis=0)
         elif init_method == 'gmm':            
             data=initialization[1]
             gmm = mixture.GaussianMixture(n_components=self.ncomps,
@@ -62,12 +65,14 @@ class GMC:
             gmm.fit(data)
             alphas = gmm.weights_.astype('float32')
             mus = gmm.means_.astype('float32')
-            covs = gmm.covariances_.astype('float32')     
+            covs = gmm.covariances_.astype('float32')
+#             chol_precs = gmm.precisions_cholesky_.astype('float32')
+#             chols= np.linalg.inv(chol_precs)                     
         elif init_method == 'params':
             alphas,mus,covs=initialization[1]
         
         # changing the parameters to standardize the resulting gmm
-        alphas,mus,covs = utl.standardize_gmm_params(alphas,mus,covs)
+        alphas,mus,covs,_ = utl.standardize_gmm_params(alphas,mus,covs)
         # now initializing trainable parameters
         param_vec = tf.Variable(utl.gmm_params2vec(self.ndims,self.ncomps,alphas,mus,covs))
         self.params=param_vec
@@ -210,7 +215,7 @@ class GMCM:
                      n_comps, 
                      data_vld=None,
                      optimizer = tf.optimizers.Adam(learning_rate=1E-3), 
-                     initialization = ['random',None], 
+                     init = 'random', 
                      max_iters = 1000, 
                      batch_size = 10, 
                      print_interval=100, 
@@ -240,8 +245,19 @@ class GMCM:
         # getting the marginal CDF values
         u_mat_trn = self.marg_bijector.inverse(self.data_trn)
 
+        # intstantiating gmc object
         gmc_obj=GMC(self.ndims,self.ncomps)
-        gmc_obj.init_params()
+        
+        # initialing gmc parameter based on the user input
+        if init=='random':
+            initialization=['random',None]
+        elif init=='gmm':
+            initialization=['gmm',data_trn]
+        elif isinstance(init, list):
+            initialization=['params',init]
+        gmc_obj.init_params(initialization)
+        
+        # fitting the gmc density
         neg_ll_trn,neg_ll_vld=gmc_obj.fit_dist(u_mat_trn,
                                     n_comps, 
                                     u_mat_valid=data_vld,

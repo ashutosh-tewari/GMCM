@@ -69,15 +69,17 @@ def GMM_best_fit(samples,min_ncomp=1,max_ncomp=10, max_iter=200, print_info=Fals
     return best_gmm
 
 # Standardize GMM parameters
-def standardize_gmm_params(alphas,mus,covs):
+def standardize_gmm_params(alphas,mus,covs,chols=[]):
     weighted_mus = tf.linalg.matvec(tf.transpose(mus),alphas)
     new_mus = mus - weighted_mus
     variances = tf.linalg.diag_part(covs)
     scaling_vec = tf.linalg.matvec(tf.transpose(new_mus**2+variances),alphas)
     scaling_matrix = tf.linalg.diag(1/(scaling_vec**0.5))
     new_mus = tf.linalg.matmul(new_mus,scaling_matrix)
-    new_covs = tf.linalg.matmul(covs,scaling_matrix**2)
-    return alphas,new_mus,new_covs
+#     new_covs = tf.linalg.matmul(covs,scaling_matrix**2)
+    new_covs=tf.linalg.matmul(tf.linalg.matmul(scaling_matrix,covs),scaling_matrix)
+    new_chols = tf.linalg.matmul(scaling_matrix,chols) if len(chols) else []
+    return alphas,new_mus,new_covs,new_chols
 
 
 def vec2gmm_params(n_dims,n_comps,param_vec):
@@ -100,13 +102,13 @@ def vec2gmm_params(n_dims,n_comps,param_vec):
     cov_matrices = cov_mat_array.stack()     
     return [logit_param,mu_vectors,cov_matrices,chol_matrices]
 
-def gmm_params2vec(n_dims,n_comps,alphas,mu_vectors,cov_matrices):
+def gmm_params2vec(n_dims,n_comps,alphas,mu_vectors,cov_matrices, chol_matrices=[]):
     # now gathering all the parameters into a single vector
     param_list = []
     param_list.append(np.log(alphas))
     param_list.append(tf.reshape(mu_vectors,-1))
     for k in range(n_comps):
-        chol_mat = tf.linalg.cholesky(cov_matrices[k])
+        chol_mat=chol_matrices[k] if len(chol_matrices) else tf.linalg.cholesky(cov_matrices[k])
         param_list.append(tfb.FillScaleTriL(diag_bijector=tfb.Exp()).inverse(chol_mat))
     param_vec = tf.concat(param_list,axis=0)
     return param_vec
