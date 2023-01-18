@@ -50,7 +50,7 @@ class GMC:
         init_method=initialization[0]
         if init_method == 'random':
             seed_val=initialization[1]
-            if seed_val:
+            if seed_val is not None:
                 np.random.seed(seed_val)
             alphas = tf.ones(self.ncomps)/self.ncomps
             mus = tf.constant(np.random.randn(self.ncomps,self.ndims).astype('float32'))
@@ -65,9 +65,7 @@ class GMC:
             gmm.fit(data)
             alphas = gmm.weights_.astype('float32')
             mus = gmm.means_.astype('float32')
-            covs = gmm.covariances_.astype('float32')
-#             chol_precs = gmm.precisions_cholesky_.astype('float32')
-#             chols= np.linalg.inv(chol_precs)                     
+            covs = gmm.covariances_.astype('float32')                  
         elif init_method == 'params':
             alphas,mus,covs=initialization[1]
         
@@ -86,7 +84,8 @@ class GMC:
                  batch_size = 10, 
                  print_interval=100, 
                  regularize=True, 
-                 plot_results = False):
+                 plot_results = False,
+                 return_param_updates=False):
         
         self.ncomps = n_comps
         
@@ -120,17 +119,20 @@ class GMC:
         neg_ll_trn[:] = np.NaN
         neg_ll_vld = np.empty(max_iters)  
         neg_ll_vld[:] = np.NaN
-        ts = time.time() # start time
-        
+        params_history=np.zeros((max_iters,self.params.shape[0]))
         patience,last_vld_err=0,float('inf')
+        
+        ts = time.time() # start time
         # Optimization iterations
         for itr in np.arange(max_iters):
             if patience>5: break # early termination 
             np.random.seed(itr)
             # Executing a training step
-            samps_idx = np.random.choice(u_mat_train.shape[0],batch_size)
+            samps_idx = np.random.choice(u_mat_train.shape[0],batch_size,replace=False)
             u_selected_trn = tf.gather(u_mat_train,samps_idx)
             neg_ll_trn[itr] = train_step(u_selected_trn).numpy()
+            # update the parameter history
+            if return_param_updates: params_history[itr,:]=self.params.numpy()
             # Printing results every 100 iteration    
             if tf.equal(itr%print_interval,0) or tf.equal(itr,0):
                 if u_mat_valid is not None: 
@@ -155,7 +157,7 @@ class GMC:
             plt.ylabel('Neg_logLike',fontsize=12)
             plt.legend(['train'],fontsize=12)
          
-        return neg_ll_trn, neg_ll_vld
+        return neg_ll_trn, neg_ll_vld, params_history
     
 
     
