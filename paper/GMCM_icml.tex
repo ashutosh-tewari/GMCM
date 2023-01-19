@@ -116,7 +116,7 @@
 
 \begin{abstract}
 
-This paper revisits Gaussian Mixture Copula Model (GMCM), a more expressive alternative to the widely used Gaussian Mixture Model (GMM), with the goal to make its parameter estimation tractable. Both the Expectation Maximization and the direct Likelihood Maximization frameworks for GMCM have to grapple with a likelihood function that lacks a closed form. This has led to a few approximation schemes that mitigate the problem, nonetheless leaving the issue still unresolved.  Additionally, past works have alluded to an additional challenge of parameter unidentifiability, but none has offered a rigorous treatment and a commensurate solution framework to overcome the challenge. This work offers solutions to each of these issues in an attempt to help GMCM realize its full potential. The source of unidentifiability is not only proven, but also suitable priors are proposed that eliminate the problem. Additionally, an efficient numerical framework is proposed to evaluate the intractable likelihood function, while also providing analytical derivatives for the the same. Finally, a view of GMCM as a series of bijective mappings from a base distribution is presented, which paves a way to synthesize GMCM using modern, open-source probabilistic programming languages (PPLs) and increase its outreach. The main claims of this work are supported with empirical evidences shown on simulated and real-world data-sets.
+This paper revisits Gaussian Mixture Copula Model (GMCM), a more expressive alternative to the widely used Gaussian Mixture Model (GMM), to make its parameter estimation tractable. Both the Expectation Maximization and the direct Likelihood Maximization frameworks for GMCM have to grapple with a likelihood function that lacks a closed-form. This has led to a few approximation schemes that alleviate the problem, nonetheless leaving the issue still unresolved.  Additionally, past works have alluded to an additional challenge of parameter unidentifiability, but none has offered a rigorous treatment and a commensurate solution framework to overcome the same. This work offers solutions to each of these issues in an attempt to help GMCM realize its full potential. The source of unidentifiability is not only proven but also suitable priors are proposed that eliminate the problem. Additionally, an efficient numerical framework is proposed to evaluate the intractable likelihood function, while also providing its analytical derivatives. Finally, a view of GMCM as a series of bijective mappings from a base distribution is presented, which paves the way to synthesize GMCM using modern, probabilistic programming languages (PPLs). The main claims of this work are supported by empirical evidence gathered on synthetic and real-world data sets.
 
  
 
@@ -230,10 +230,9 @@ While conceptually similar, there are a few notable differences between GMCM and
 \label{fig:gmcm_transformation}
 \end{figure}
 \subsection{A numerical scheme to compute $\Psi^{-1}_r(\cdot)$ and its partial derivatives} 
-Section \ref{subsec:MLE_GMCM} emphasized the need a method to compute $\Psi^{-1}_r(\cdot)$ that does better than the linear scaling of previous interpolation-based methods. Here, a computationally efficient alternative is proposed where the desired inversion is sought as a root of the equation $\bs{u}_r-\Psi_r(z_r)=0$, thus opening door to a rich set of algorithms. For instance, the well-known \emph{secant-method} enjoys quadratic convergence in most cases \citep{diez2003}, thereby needing far less number of function evaluations than the interpolation-based inversion. However, this only partly solves the problem, since the partial derivatives of $\Psi^{-1}_r(\cdot)$ are also needed with respect to $\Theta_r=\{\alpha_l,u_r^l,\sigma_r^l\}_{l=1}^m$. Appendix xx derives the partial derivative by invoking the triple product rule of calculus. One may argue the need of explicit derivatives, when PPLs offer automatic-differentiation capabilities. 
+Section \ref{subsec:MLE_GMCM} emphasized the need a method to compute $\Psi^{-1}_r(\cdot)$ that does better than the linear scaling of previous interpolation-based methods. Here, a computationally efficient alternative is proposed where the desired inversion is sought as the root of the expression $\bs{u}_r-\Psi_r(z_r)$, thus opening door to a rich set of algorithms. For instance, the well-known \emph{secant-method} enjoys quadratic convergence in most cases \citep{diez2003}, thereby needing far less number of function evaluations than the interpolation-based inversion. However, this only partly solves the problem, since the partial derivatives of $\Psi^{-1}_r(\cdot)$ are also needed with respect to $\Theta_r=\{\alpha_l,u_r^l,\sigma_r^l\}_{l=1}^m$. Appendix \ref{apd:gmm_quantile_derivatives} provides the derivation of the aforementioned partial derivatives. One may argue the need of explicit derivatives, when PPLs offer automatic-differentiation capabilities. 
 
 \section{Identifiability of GMCM}\label{sec:identifiability_GMCM}
-
 Another issue that plagues GMCM is that of parameter \emph{non-identifiability}. Identifiability is a key property that determines if it is possible to learn the true values of a generative model's parameters after observing infinite samples from it. Finite mixture models are known to suffer from the issue of parameter non-identifiability, since the likelihood is invariant under a permutation of component labels \citep[see][]{Stephens2000}. This is commonly known as \emph{label switching} problem. However, GMCM suffer from another form of parameter non-identifiability as proven in the theorem below.
 
   
@@ -354,71 +353,42 @@ Finally, we evaluate GMCM's performance for the task of density estimation on re
 
 \onecolumn
 
-\section{Glossary of frequency used symbols} \label{apd:symbol_glossary}
+\section{Appendix} 
 
+\subsection{Glossary of frequently used symbols} \label{apd:symbol_glossary}
 \begin{table}[h]
-
 \caption{Symbols and descriptions}
-
 \label{tab:symbol_glossary}
-
 \begin{tabular}{ll}
-
 \hline
-
 \textbf{Symbol} & \textbf{Description} \\
-
 \hline
-
 $d$ & data dimensions \\
-
 $m$ & number of components in the mixture model \\
-
 $n$ & number of data samples \\
-
 $\Theta = \{\bs{\mu}^l, \Sigma^l, \alpha^l\}_{l=1}^m$ & parameter of $m$-component, $d$-dimensional GMM \\
-
 $\Theta^r= \{\bs{\mu}_r^l, \Sigma_{rr}^l, \alpha^l\}_{l=1}^m$ & parameters of marginal GMM along the $r^{th}$ dimension $(\Theta^r \subset \Theta)$ \\
-
 $f_r $ & arbitrary univariate density function \\
-
 $F_r, F_r^{-1}$ & the distribution and the quantile function corresponding to $f_r$ \\
-
 $F$ & vector function defined as $F = [F_1, F_2,\cdots,F_d]$ \\
-
 $\psi, \Psi$ & joint density and distribution function of GMM in $\mathbb{R}^d$ \\
-
 $\psi_r , \Psi_r$ & density and distribution function of the of the GMM along the $r^{th}$ dimension \\
-
 $\Psi_r^{-1}$ & quantile function corresponding to $\Psi_r$ \\
-
 $\Psi^{-1}$ & vector function defined as $\Psi^{-1} = [\Psi_1^{-1}, \Psi_2^{-1},\cdots,\Psi_d^{-1}]$ \\
-
 $\bs{x} \in \mathbb{R}^d$ & real valued vector whose distribution is sought \\
-
 $\bs{u} \in [0,1]^d=F(\bs{x})$ &  vector of uniformly distributed random variables \\
-
 $\bs{z} \in \mathbb{R}^d =\Psi^{-1}(\bs{u}) $ &  vector with quantile values of GMM marginals \\
-
 $X \in \mathbb{R}^{d \times n}$ & matrix of $n$, $\bs{x}$ vectors arranged columnwise \\
-
 $U \in [0,1]^{d \times n}$ & matrix of $n$, $\bs{u}$ vectors arranged columnwise \\
-
 $Z \in \mathbb{R}^{d \times n}$ & matrix of $n$, $\bs{z}$ vectors arranged columnwise \\
-
 $\bs{y}$ & $n$-dimensional vector such that $\bs{y}_i \in \{1,2,\cdots,m\}$ \\
-
 $\bar{Z}_{:i} \in \mathbb{R}^d$ & mean adjusted vector i.e. $\bar{Z}_{:i} = Z_{:i} - \bs{\mu}^{\bs{y}_i}$ \\
-
 $W $ & Cholesky factor of an inverse covariance matrix i.e. $W^TW=\Sigma^{-1}$ \\
-
- \hline
-
+\hline
 \end{tabular}
-
 \end{table}
 
-% Derivation of E-Step
+\subsection{Derivation of E-Step}
 Hence the expectation of the complete data log-likelihood can be written as
 
 \begin{align} \label{eq:ll_comp_expectation}
@@ -436,21 +406,32 @@ with $H$ and $G$ being matrices of dimensions $n\times m$. The $(j,l)^{th}$ elem
 G_{jl}=P\left(\bs{y}_j=l|U_{:j},\hat{\Theta}\right)=\frac{\alpha^l\phi\left(\Psi^{-1}(U_{:j}); \hat{\Theta}^l\right)}{\sum_{i=1}^m\alpha^i\phi\left(\Psi^{-1}(U_{:j}); \hat{\Theta}^i\right)}.
 \end{align}
 
-
-
-
-
-
-\subsection{Partial derivatives of $Z_{:i}$}
-The partial derivatives obtained in Sections \ref{subsec:QI_partial_deriv} and \ref{subsec:QII_partial_deriv} require partial derivatives of $Z_{:i}$. As noted earlier, this poses a challenge due to the lack of a closed form of $Z_{:i}$. However, the fact that the forward functions have well defined derivatives, enables exact derivation of the partial derivatives of $Z_{:i}$. Again, we exclude derivations and provide the final expressions for the sake of brevity.
-\begin{align}\label{eq:der_z}
-\der{\alpha^k}{Z_{ri}} &= \frac{1}{2S_{ri}}\left[1+ \erf \left( \frac{\bar{Z}^k_{ri}}{\sqrt{2\Sigma_{rr}^k}}\right) \right] \\
-\der{\bs{\mu}^k}{Z_{ri}} &= -\frac{S^k_{ri}}{S_{ri}} \\
-\der{W^k}{Z_{ri}} &= -\frac{S^k_{ri}}{S_{ri}}  \times \frac{\bar{Z}_{ri}^k}{2\Sigma_{rr}^k} \times \der{W^k}{\Sigma_{rr}^k}
-\end{align}
-
- 
- 
+\subsection{Partial derivatives of $\Psi^{-1}_r(\cdot)$}\label{apd:gmm_quantile_derivatives}
+Let's say that $z_r=\Psi_r^{-1}(u)$. Even though $\Psi^{-1}_r(\cdot)$ does not have a closed-form, its partial derivatives can be obtained analytically via its forward function $\Psi_r(\cdot)$, and by invoking Euler's chain rule, as shown in Equation \eqref{eq:TripleProduct}.
+\begin{equation}\label{eq:TripleProduct}
+\frac{dz_r}{d\theta}=- \frac{\left(\frac{d\Psi_r(z_r)}{d\theta}\right)_z}{\left(\frac{d\Psi_r(z_r)}{dz_r}\right)_\theta}
+\end{equation}
+The expression in the denominator is identical for all the partial derivatives and is simply the density functionof the univariate GMM, i.e 
+\begin{equation}\label{eq:Gamma_dz}
+\der{z_r}{\Psi_r(z_r)}=\psi_r(z_r).
+\end{equation}
+The partial derivatives of the numerator can be derived, as follows, by applying of matrix calculus identities.
+\\
+\\
+\text{Derivative of $z_r$ w.r.t to $\alpha_k$}
+\begin{equation}
+\der{\alpha_k}{\Psi_r(z_r)}=\frac{1}{2}\left[1+ \erf \left( \frac{z_r-\mu_{k,r}}{\sqrt{2\Sigma_{r,k}}}\right) \right]
+\end{equation}
+\\
+\text{Derivative of $z_r$ w.r.t to $\mu_k$}
+\begin{equation}
+\der{\mu_k}{\Psi_r(z_r)}= -\frac{\alpha_k}{\sqrt{2\pi\Sigma_{r,k}}}\exp\left( - \frac{(z_r-\mu_{k,r})^2}{2\Sigma_{r,k}}	 \right)
+\end{equation}
+\\
+\text{Derivative of $z_r$ w.r.t to $\Sigma_k$}
+\begin{equation}
+\der{\Sigma_k}{\Psi_r(z_r)}= -\sum\limits_{l=1}^{m}\frac{\alpha_l}{\sqrt{2\pi\Sigma_{r,l}}}\exp\left( - \frac{(z_r-\mu_{r,l})^2}{2\Sigma_{r,l}} \right) \times \frac{(z_r-\mu_{r,l})}{2\Sigma_{r,l}} \times \der{\Sigma_k}{\Sigma_{r,l}}
+\end{equation}
 
 
 \end{document}
