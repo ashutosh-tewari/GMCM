@@ -260,19 +260,19 @@ class GMCM:
         gmc_obj.init_params(initialization)
         
         # fitting the gmc density
-        neg_ll_trn,neg_ll_vld=gmc_obj.fit_dist(u_mat_trn,
-                                    n_comps, 
-                                    u_mat_valid=data_vld,
-                                    optimizer = optimizer, 
-                                    max_iters = max_iters, 
-                                    batch_size = batch_size, 
-                                    print_interval = print_interval, 
-                                    regularize = regularize, 
-                                    plot_results = plot_results)
+        neg_ll_trn,neg_ll_vld,param_history=gmc_obj.fit_dist(u_mat_trn,
+                                                             n_comps, 
+                                                             u_mat_valid=data_vld,
+                                                             optimizer = optimizer, 
+                                                             max_iters = max_iters, 
+                                                             batch_size = batch_size, 
+                                                             print_interval = print_interval, 
+                                                             regularize = regularize, 
+                                                             plot_results = plot_results)
         # setting gmc distritbution embedded inside GMCM
         self.gmc=gmc_obj
         
-        return neg_ll_trn, neg_ll_vld
+        return neg_ll_trn, neg_ll_vld, param_history
     
     def get_marginal(self,dim_list):        
         data_in_new = tf.gather(self.data_in,dim_list,axis=1).numpy()
