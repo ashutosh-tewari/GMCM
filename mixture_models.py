@@ -275,7 +275,6 @@ class GMCM:
         return neg_ll_trn, neg_ll_vld, param_history
     
     def get_marginal(self,dim_list):        
-#         data_in_new = tf.gather(self.data_in,dim_list,axis=1).numpy()
         logits,mus,covs,_ = utl.vec2gmm_params(self.ndims,self.ncomps,self.gmc.params)
         alphas = tf.math.softmax(logits)
         dim_remove = list(set(list(range(self.ndims)))-set(dim_list))
@@ -295,7 +294,6 @@ class GMCM:
                 marg_list_new.append(self.marg_dists[j])
         # creating the marginal gmcm object
         marg_gmcm_dist = GMCM(len(dim_list), 
-#                               data_in_new, 
                               data_transform=self.preproc_transform, 
                               marginals_list=marg_list_new, 
                               gmc=marg_gmc)
