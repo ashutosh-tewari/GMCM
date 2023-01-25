@@ -11,9 +11,9 @@ class MINIBOONE:
             self.x = data.astype(np.float32)
             self.N = self.x.shape[0]
 
-    def __init__(self):
+    def __init__(self,data_folder):
 
-        file = '/home/ec2-user/SageMaker/GMCM-TF/real_world_data/miniboone/data.npy'
+        file = data_folder+'/miniboone/data.npy'
         trn, val, tst = load_data_normalised(file)
 
         self.trn = self.Data(trn)

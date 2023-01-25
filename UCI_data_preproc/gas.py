@@ -11,10 +11,10 @@ class GAS:
             self.x = data.astype(np.float32)
             self.N = self.x.shape[0]
 
-    def __init__(self):
+    def __init__(self,data_folder):
 
 #         file = datasets.root + 'gas/ethylene_CO.pickle'
-        file = '/home/ec2-user/SageMaker/GMCM-TF/real_world_data/gas/ethylene_CO.pickle'
+        file =data_folder+'gas/ethylene_CO.pickle'
         trn, val, tst = load_data_and_clean_and_split(file)
 
         self.trn = self.Data(trn)

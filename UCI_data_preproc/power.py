@@ -31,7 +31,7 @@ class POWER:
 
 
 def load_data():
-    return np.load('/home/ec2-user/SageMaker/GMCM-TF/real_world_data/power/data.npy')
+    return np.load(data_folder+'/power/data.npy')
 
 
 def load_data_split_with_noise():
