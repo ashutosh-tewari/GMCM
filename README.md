@@ -14,11 +14,11 @@ Link-to-the-paper
 
 
 ## Structure
-- /mixture_models.py: Implementation of the GMCM class.
-- /custom_bijectors.py: Implementation of bijectors needed for GMCM specification
-- /utils.py: Various auxiliary functions.
-- /exps: Folder with additional code to reproduce experiments in the paper.
-- /UCI_data_preproc: Folder with scripts to preprocess data (Copied from the github repo https://github.com/gpapamak/maf)
+- GMCM/mixture_models.py: Implementation of the GMCM class.
+- GMCM/custom_bijectors.py: Implementation of bijectors needed for GMCM specification
+- GMCM/utils.py: Various auxiliary functions.
+- GMCM/exps: Folder with additional code to reproduce experiments in the paper.
+- GMCM/UCI_data_preproc: Folder with scripts to preprocess data (Copied from the github repo https://github.com/gpapamak/maf)
 
 
 ## Usage
