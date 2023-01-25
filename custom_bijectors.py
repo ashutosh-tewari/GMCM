@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 tfd=tfp.distributions
 tfb=tfp.bijectors
-import utils_v1 as utl
+import utils as utl
 
 # GMC bijector
 class GMC_bijector(tfb.Bijector):

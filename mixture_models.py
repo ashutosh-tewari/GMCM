@@ -4,8 +4,8 @@ import tensorflow_probability as tfp
 tfd=tfp.distributions
 tfb=tfp.bijectors
 import time
-import utils_v1 as utl
-from custom_bijectors_v1 import Marginal_transform, GMC_bijector
+import utils as utl
+from custom_bijectors import Marginal_transform, GMC_bijector
 from sklearn import mixture
 
 
@@ -107,7 +107,7 @@ class GMC:
             grads = tape.gradient(total_cost, self.params)
             if not (tf.reduce_any(tf.math.is_nan(grads)) or tf.reduce_any(tf.math.is_inf(grads))):
                 optimizer.apply_gradients(zip([grads], [self.params])) #updating the gmc parameters
-            return neg_gmc_ll
+            return total_cost
         
         # Defining the validation step
         @tf.function
@@ -190,12 +190,12 @@ class GMCM:
         return gmcm_dist
     
     
-    def learn_marginals(self):
+    def learn_marginals(self,max_allowable_comps=10):
         # fitting marginal distributions first
         marg_dist_list=[]
         for j in range(self.ndims):
             input_vector = self.data_trn[:,j].reshape(-1,1)
-            marg_gmm_obj = utl.GMM_best_fit(input_vector,min_ncomp=1,max_ncomp=12)
+            marg_gmm_obj = utl.GMM_best_fit(input_vector,min_ncomp=1,max_ncomp=max_allowable_comps)
             marg_gmm_tfp = tfd.MixtureSameFamily(
                 mixture_distribution=tfd.Categorical(probs=marg_gmm_obj.weights_.flatten().astype('float32')),
                 components_distribution=tfd.Normal(loc=marg_gmm_obj.means_.flatten().astype('float32'),
@@ -275,8 +275,8 @@ class GMCM:
         return neg_ll_trn, neg_ll_vld, param_history
     
     def get_marginal(self,dim_list):        
-        data_in_new = tf.gather(self.data_in,dim_list,axis=1).numpy()
-        logits,mus,covs,_ = vec2gmm_params(self.ndims,self.ncomps,self.gmc.params)
+#         data_in_new = tf.gather(self.data_in,dim_list,axis=1).numpy()
+        logits,mus,covs,_ = utl.vec2gmm_params(self.ndims,self.ncomps,self.gmc.params)
         alphas = tf.math.softmax(logits)
         dim_remove = list(set(list(range(self.ndims)))-set(dim_list))
         mus_new = tf.gather(mus, dim_list, axis=1)
@@ -286,7 +286,7 @@ class GMCM:
             covs_new = covs_new.write(k,temp_mat[np.ix_(dim_list,dim_list)])
         covs_new = covs_new.stack()
         # getting the gmc object first for the marginal gmcm
-        marginal_gmc_params = gmm_params2vec(len(dim_list),self.ncomps,alphas,mus_new,covs_new)
+        marginal_gmc_params = utl.gmm_params2vec(len(dim_list),self.ncomps,alphas,mus_new,covs_new)
         marg_gmc = GMC(len(dim_list),self.ncomps,marginal_gmc_params)
         # then getting the marginals along the specified dimensions
         marg_list_new = []
@@ -295,8 +295,8 @@ class GMCM:
                 marg_list_new.append(self.marg_dists[j])
         # creating the marginal gmcm object
         marg_gmcm_dist = GMCM(len(dim_list), 
-                              data_in_new, 
-                              log_transform=self.log_transform, 
+#                               data_in_new, 
+                              data_transform=self.preproc_transform, 
                               marginals_list=marg_list_new, 
                               gmc=marg_gmc)
         return marg_gmcm_dist   

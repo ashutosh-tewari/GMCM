@@ -58,7 +58,10 @@ def GMM_best_fit(samples,min_ncomp=1,max_ncomp=10, max_iter=200, print_info=Fals
     bic = []
     for n_components in range(min_ncomp, max_ncomp+1):
         # Fit a Gaussian mixture with EM
-        gmm = mixture.GaussianMixture(n_components=n_components+1,covariance_type='full',max_iter=max_iter,n_init=5)
+        gmm = mixture.GaussianMixture(n_components=n_components+1,
+                                      covariance_type='full',
+                                      reg_covar=1E-4,
+                                      max_iter=max_iter,n_init=5)
         gmm.fit(samples)
         if print_info:
             print('Fittng a GMM on samples with %s components: BIC=%f'%(n_components,gmm.bic(samples)))
