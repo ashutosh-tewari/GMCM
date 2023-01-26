@@ -31,122 +31,63 @@
  
 
 % hyperref makes hyperlinks in the resulting PDF.
-
 % If your build breaks (sometimes temporarily if a hyperlink spans a page)
-
 % please comment out the following usepackage line and replace
-
 % \usepackage{icml2021} with \usepackage[nohyperref]{icml2021} above.
-
 \usepackage{hyperref}
-
 % Attempt to make hyperref and algorithmic work together better:
-
 \newcommand{\theHalgorithm}{\arabic{algorithm}}
 
 % Use the following line for the initial blind version submitted for review:
-
 \usepackage{icml2023}
-
  
-
 \icmltitlerunning{On the Estimation of Gaussian Mixture Copula Models}
-
- 
 
 \begin{document}
 
 \twocolumn[
 
 \icmltitle{On the Estimation of Gaussian Mixture Copula Models}
-
- 
-
 \icmlsetsymbol{equal}{*}
 
- 
-
 \begin{icmlauthorlist}
-
-\icmlauthor{Aeiau Zzzz}{equal,to}
-
+\icmlauthor{Xxxxxx Zzzz}{equal,to}
 \end{icmlauthorlist}
 
- 
-
 \icmlaffiliation{to}{Department of Computation, University of Torontoland, Torontoland, Canada}
-
-\icmlcorrespondingauthor{Ashutosh Tewari}{ashutosh80@gmail.com}
-
- 
+\icmlcorrespondingauthor{first last}{first_last@gmail.com}
 
 % You may provide any keywords that you
-
 % find helpful for describing your paper; these are used to populate
-
 % the "keywords" metadata in the PDF but will not be shown in the document
 
 \icmlkeywords{Copulas, Density estimation, Normalizing flows, Mixture models}
-
- 
-
 \vskip 0.3in
-
 ]
 
- 
-
 \DeclareRobustCommand{\nativellDenom}[1] {\prod\limits_{r=1}^{d}\psi_{r}\left(\Psi^{-1}_{r} \left( \bs{u}_r{#1} \right);\Theta^r \right) }
-
 \DeclareRobustCommand{\llDenom}[1] {\prod\limits_{r=1}^{d}\psi_{r}\left(Z_{r{#1}};\Theta^r \right) }
-
 \DeclareRobustCommand{\invCDF}[1]{ Z_{#1} }
-
 \DeclareRobustCommand{\erf}{\textmd{erf}}
-
 \DeclareRobustCommand{\AltllDenom}[1] {\log \left( \psi_{r}\left(\Psi^{-1}_{r} \left( \bs{u}_{r#1} \right);\Theta^r \right) \right) }
-
 \DeclareRobustCommand{\zbar}[1] {\bar{Z}_{:{#1}}}
-
 \DeclareRobustCommand{\ma_zbar}[2] {\bar{\textbf{z}}_{#1}(#2)}
-
 \DeclareRobustCommand{\der}[2] {\frac{\partial \left({#2}\right)}{\partial {#1}}}
-
 \newcommand{\bs}[1]{\boldsymbol{#1}}
-
 \DeclareRobustCommand{\bf}[1]{\textbf{#1}}
-
 \newcommand{\argmaxI}{\mathop{\mathrm{argmax}}\nolimits} % ASdeL
-
 \printAffiliationsAndNotice{}  % leave blank if no need to mention equal contribution
 %\printAffiliationsAndNotice{\icmlEqualContribution} % otherwise use the standard text.
 \begin{abstract}
 
 This paper revisits Gaussian Mixture Copula Model (GMCM), a more expressive alternative to the widely used Gaussian Mixture Model (GMM), with the goal to make its parameter estimation tractable. Both the Expectation Maximization and the direct Likelihood Maximization frameworks for GMCM have to grapple with a likelihood function that lacks a closed-form. This has led to a few approximation schemes that alleviate the problem, nonetheless leaving the issue still unresolved.  Additionally, past works have alluded to an additional challenge of parameter non-identifiability, but none has offered a rigorous treatment and a commensurate solution framework to overcome the same. This work offers solutions to each of these issues in an attempt to help GMCM realize its full potential. The source of non-identifiability is not only proven but also suitable priors are proposed that eliminate the problem. Additionally, an efficient numerical framework is proposed to evaluate the intractable likelihood function, while also providing its analytical derivatives. Finally, a view of GMCM as a series of bijective mappings from a base distribution is presented, which paves the way to synthesize GMCM using modern, probabilistic programming languages (PPLs). The main claims of this work are supported by empirical evidence gathered on synthetic and real-world datasets.
-
- 
-
-% a likelihood function that lacks a closed-form representation, and the reliance on numerical gradients (of likelihood function) make the parameter estimation cost prohibitive and impractical for high-dimensional, high-volume data-sets.
-
- 
-
- 
-
-% for modeling continuous, multivariate data-sets, exhibiting multimodal distribution. GMCM combines the complex dependencies  endowed to Like other copula-based models, the strength of GMCMs comes from the ability to separate the learning of marginal models of the random variables from that of the dependence between them. Despite this flexibility and its potential impact on modeling real-world data, the learning of GMCM parameters is hard. The issue of non-identifiability, an intractable likelihood function that lacks a closed-form representation, and the reliance of maximum-likelihood methods on numerical gradients make the parameter estimation cost prohibitive and impractical for high-dimensional problems. This work offers solutions to each of these issues in an attempt to help GMCM realize its full potential. The main claims of this work are supported with empirical evidences shown on simulated and real-world data-sets.
-
 \end{abstract}
 
- 
-
 %% \linenumbers
-
- 
-
 %% main text
 
 \section{Introduction}\label{sec:Intro}
-
-Modeling multivariate data is of fundamental interest, in several domains, to solve myriad of practical problems. From a probabilistic viewpoint, it amounts to defining a generative process that best explains the observed data when seen as random variables. Copulas provide a unique framework to model multivariate data that allows for complete control on the marginal behaviors of the random variables while being able to separately capture the dependencies between them. See \citep{Durante2010CopulaIntro} and references therein for a survey on this subject.  The decoupling $-$of marginal and joint behavior$-$ induced by a copula can be especially significant when the true data-generating process imposes strict constraints over the marginal distributions of some or all random variables. Ideally, any effort to model such data should adhere to these constraints. However, in the pursuit of finding a joint model of the random variables, one typically ends up with inconsistent marginal models.  Given the ability of copulas to overcome such inconsistencies, they have been applied in many scientific fields though particularly in finance \citep{Genest2009CopulaInFinance,Cherubini2004copula}, reliability analysis \citep{Rychlik2010Reliability} and molecular biology \citep{Bilgrau2012quantification,Li2011,Kim2008,Ma2012Gini}.  There have also been  attempts to find synergies between copula theory and machine learning to build high-fidelity data-driven models \citep[see][for a survey on the applications of copulas in machine learning approaches]{Elidan2013}.
+Modeling multivariate data is of fundamental interest, in several domains, to solve myriad of practical problems. From a probabilistic viewpoint, it amounts to defining a generative process that best explains the observed data when seen as random variables. Copulas provide a unique framework to model multivariate data that allows for complete control on the marginal behaviors of the random variables while being able to separately capture the dependencies between them. See \citep{Durante2010CopulaIntro} and references therein for a survey on this subject.  This decoupling induced by a copula can be especially significant when the true data-generating process imposes strict constraints over the marginal distributions of some or all random variables. Ideally, any effort to model such data should adhere to these constraints. However, in the pursuit of finding a joint model of the random variables, one typically ends up with inconsistent marginal models.  Given the ability of copulas to overcome such inconsistencies, they have been applied in many scientific fields though particularly in finance \citep{Genest2009CopulaInFinance,Cherubini2004copula}, reliability analysis \citep{Rychlik2010Reliability} and molecular biology \citep{Bilgrau2012quantification,Li2011,Kim2008,Ma2012Gini}.  There have also been  attempts to find synergies between copula theory and machine learning to build high-fidelity data-driven models \citep[see][for a survey on the applications of copulas in machine learning approaches]{Elidan2013}.
 
 The focus of this paper is on the multivariate modeling of continuous random variables, exhibiting multimodal behavior in their  joint (and/or marginal) distribution. Gaussian Mixture Models (GMMs) \citep{Bilmes98agentle} have been prolifically used to model such datasets, thanks to their simplicity and an efficient Expectation-Maximization (EM) algorithm for parameter estimation. However, the assumption of jointly normally distributed components is frequently violated in real-world applications, with unintended practical ramifications. The Gaussian mixture copula model (GMCM) \citep{Tewari2011,Bilgrau2016,Bhattacharya2014, kasa2018} offers a more expressive alternative to GMM while keeping the same parameterization to capture multimodal dependence structure. Figure \ref{fig:motivating_example_gmcm} illustrates the expressivity endowed by the GMCM via a synthetic two-dimensional dataset with 100 samples (Figure \ref{fig:motivating_example_gmcm}a) that appears to have a bimodal distribution with non-Gaussian modes. The best-fit GMCM and a GMM are obtained on this dataset, wherein the optimal number of components is determined via the widely used Bayesian Information Criterion (BIC). A quick look at the density contours (Figure \ref{fig:motivating_example_gmcm}b-\ref{fig:motivating_example_gmcm}c) and the generated random samples (Figure \ref{fig:motivating_example_gmcm}d-\ref{fig:motivating_example_gmcm}e), suggests that the GMCM is a more faithful model of the underlying data, with a noticeable tighter fit. The GMM, on the other hand, can be seen to diffuse into regions with no data support, even with an extra mixing component.
 
