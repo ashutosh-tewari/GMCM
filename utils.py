@@ -7,6 +7,7 @@ tfb=tfp.bijectors
 from sklearn import mixture
 import math as m
 from scipy import interpolate
+from matplotlib import pyplot as plt
 
 
 # Function to split the data in training, testing and validation sets
@@ -27,7 +28,7 @@ def splitData(data,split_fracs=[0.7,0.2,0.1]):
     return data_trn,data_vld,data_tst
 
 # Function to compute numerical gradient using central finite difference
-def gradientFiniteDifferent(func,theta,delta=1E-4):
+def gradientFiniteDifference(func,theta,delta=1E-4):
     n = np.size(theta)
     grad = np.zeros((n))
     for i in range(n):
@@ -58,10 +59,11 @@ def GMM_best_fit(samples,min_ncomp=1,max_ncomp=10, max_iter=200, print_info=Fals
     bic = []
     for n_components in range(min_ncomp, max_ncomp+1):
         # Fit a Gaussian mixture with EM
-        gmm = mixture.GaussianMixture(n_components=n_components+1,
+        gmm = mixture.GaussianMixture(n_components=n_components,
                                       covariance_type='full',
                                       reg_covar=1E-4,
-                                      max_iter=max_iter,n_init=5)
+                                      max_iter=max_iter,
+                                      n_init=5)
         gmm.fit(samples)
         if print_info:
             print('Fittng a GMM on samples with %s components: BIC=%f'%(n_components,gmm.bic(samples)))
@@ -115,6 +117,31 @@ def gmm_params2vec(n_dims,n_comps,alphas,mu_vectors,cov_matrices, chol_matrices=
         param_list.append(tfb.FillScaleTriL(diag_bijector=tfb.Exp()).inverse(chol_mat))
     param_vec = tf.concat(param_list,axis=0)
     return param_vec
+
+
+def plotDensityContours(data,log_prob,dim1,dim2):
+    # PLOTTING THE DENSITY CONTOURS OF LEARNED GMCM
+    mins=np.min(data,axis=0)
+    maxs=np.max(data,axis=0)
+    # specifying the gridsie for density plotting
+    ngrid=100
+    X,Y=np.meshgrid(np.linspace(mins[dim1],maxs[dim1],ngrid),(np.linspace(mins[dim2],maxs[dim2],ngrid)))
+    X=X.astype('float32')
+    Y=Y.astype('float32')
+    z=np.concatenate([X.reshape(-1,1),Y.reshape(-1,1)],axis=1)
+    # computing the GMCM density values
+    prob_z=np.exp(log_prob(z).numpy())
+    # reshaping the density vector
+    Z=prob_z.reshape(ngrid,ngrid)
+    # Plotting the density contours along with the  data
+    plt.contour(X,Y,Z,20)
+    plt.plot(data[:,dim1],data[:,dim2],'ko')
+    plt.xlabel(f'dim_{dim1}',fontsize=14)
+    plt.ylabel(f'dim_{dim2}',fontsize=14)
+    
+
+
+
 
 def fitMargNonParam(x1_array):
     x1_array_sorted = np.zeros_like(x1_array)

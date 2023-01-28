@@ -195,7 +195,9 @@ class GMCM:
         marg_dist_list=[]
         for j in range(self.ndims):
             input_vector = self.data_trn[:,j].reshape(-1,1)
-            marg_gmm_obj = utl.GMM_best_fit(input_vector,min_ncomp=1,max_ncomp=max_allowable_comps)
+            marg_gmm_obj = utl.GMM_best_fit(input_vector,
+                                            min_ncomp=1,
+                                            max_ncomp=max_allowable_comps)
             marg_gmm_tfp = tfd.MixtureSameFamily(
                 mixture_distribution=tfd.Categorical(probs=marg_gmm_obj.weights_.flatten().astype('float32')),
                 components_distribution=tfd.Normal(loc=marg_gmm_obj.means_.flatten().astype('float32'),
