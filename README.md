@@ -3,20 +3,6 @@ Gaussian Mixture Copula Model (GMCM) implementation using TensorFlow-Probability
 
 For details, see https://proceedings.mlr.press/v202/tewari23a.html 
 
-## Citation (bibtex)
-"@InProceedings{pmlr-v202-tewari23a,
-  title = 	 {On the Estimation of {G}aussian Mixture Copula Models},
-  author =       {Tewari, Ashutosh},
-  booktitle = 	 {Proceedings of the 40th International Conference on Machine Learning},
-  pages = 	 {34090--34104},
-  year = 	 {2023},
-  editor = 	 {Krause, Andreas and Brunskill, Emma and Cho, Kyunghyun and Engelhardt, Barbara and Sabato, Sivan and Scarlett, Jonathan},
-  volume = 	 {202},
-  series = 	 {Proceedings of Machine Learning Research},
-  month = 	 {23--29 Jul},
-  publisher =    {PMLR},
-}"
-
 ## Requirements
 - python>=3.7
 - numpy>=1.19.5
@@ -77,4 +63,18 @@ Finally, the density contours can be obtained by the marginalizing GMCM along an
 
 ## UCI benchmark dataset
 Refer to the documentation, *How to get the datasets*?, in https://github.com/gpapamak/maf
+
+## Citation.bib
+"@InProceedings{pmlr-v202-tewari23a,
+  title = 	 {On the Estimation of {G}aussian Mixture Copula Models},
+  author =       {Tewari, Ashutosh},
+  booktitle = 	 {Proceedings of the 40th International Conference on Machine Learning},
+  pages = 	 {34090--34104},
+  year = 	 {2023},
+  editor = 	 {Krause, Andreas and Brunskill, Emma and Cho, Kyunghyun and Engelhardt, Barbara and Sabato, Sivan and Scarlett, Jonathan},
+  volume = 	 {202},
+  series = 	 {Proceedings of Machine Learning Research},
+  month = 	 {23--29 Jul},
+  publisher =    {PMLR},
+}"
 
