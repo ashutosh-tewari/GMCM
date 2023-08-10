@@ -3,7 +3,7 @@ Gaussian Mixture Copula Model (GMCM) implementation using TensorFlow-Probability
 
 For details, see https://proceedings.mlr.press/v202/tewari23a.html 
 
-## Citation.bib
+## Citation (bibtex)
 "@InProceedings{pmlr-v202-tewari23a,
   title = 	 {On the Estimation of {G}aussian Mixture Copula Models},
   author =       {Tewari, Ashutosh},
