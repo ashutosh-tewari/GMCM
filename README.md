@@ -1,8 +1,7 @@
 # GMCM
 Gaussian Mixture Copula Model (GMCM) implementation using TensorFlow-Probability (TFP) constructs. GMCM is a more expressive alternative to the Gaussian Mixture Models (GMMs) while having the same parameterization to encode multimodal dependence structure.
 
-For details, see:
-  "paper/GMCM_icml.pdf"
+For details, see https://proceedings.mlr.press/v202/tewari23a.html 
 
 ## Citation
 "@InProceedings{pmlr-v202-tewari23a,
