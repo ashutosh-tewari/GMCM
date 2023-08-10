@@ -5,7 +5,7 @@ For details, see:
   "paper/GMCM_icml.pdf"
 
 ## Citation
-@InProceedings{pmlr-v202-tewari23a,
+InProceedings{pmlr-v202-tewari23a,
   title = 	 {On the Estimation of {G}aussian Mixture Copula Models},
   author =       {Tewari, Ashutosh},
   booktitle = 	 {Proceedings of the 40th International Conference on Machine Learning},
