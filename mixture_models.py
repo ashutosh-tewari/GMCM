@@ -4,8 +4,8 @@ import tensorflow_probability as tfp
 tfd=tfp.distributions
 tfb=tfp.bijectors
 import time
-import utils as utl
-from custom_bijectors import Marginal_transform, GMC_bijector
+from . import utils as utl
+from .custom_bijectors import Marginal_transform, GMC_bijector
 from sklearn import mixture
 
 
