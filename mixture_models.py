@@ -4,8 +4,8 @@ import tensorflow_probability as tfp
 tfd=tfp.distributions
 tfb=tfp.bijectors
 import time
-from . import utils as utl
-from .custom_bijectors import Marginal_transform, GMC_bijector
+import GMCM.utils as utl
+from GMCM.custom_bijectors import Marginal_transform, GMC_bijector
 from sklearn import mixture
 
 
@@ -184,9 +184,15 @@ class GMCM:
     @property
     def distribution(self):
         # setting the gmcm distribution as a transformed distribution of gmc_distribution
-        gmcm_dist = tfd.TransformedDistribution(distribution=self.gmc.distribution,bijector=self.marg_bijector)
         if self.preproc_transform:
-            gmcm_dist = tfd.TransformedDistribution(distribution=gmcm_dist,bijector=self.preproc_transform)
+            gmcm_dist = tfd.TransformedDistribution(distribution=self.gmc.distribution.distribution,
+                                                    bijector=tfb.Chain([self.preproc_transform,
+                                                                        self.marg_bijector,
+                                                                        self.gmc.distribution.bijector]))
+        else:
+            gmcm_dist = tfd.TransformedDistribution(distribution=self.gmc.distribution.distribution,
+                                                    bijector=tfb.Chain([self.marg_bijector,
+                                                                        self.gmc.distribution.bijector]))
         return gmcm_dist
     
     
@@ -276,7 +282,18 @@ class GMCM:
         
         return neg_ll_trn, neg_ll_vld, param_history
     
-    def get_marginal(self,dim_list):        
+    def get_marginal(self,dim_list):
+        """Returns the marginal model along the specified dimensions
+
+        Parameters
+        ----------
+        dim_list : a list with dimensions along which marginal is sought
+
+        Returns
+        -------
+        marg_gmcm_dist : marginal gmcm along the desired dimensions
+        
+        """
         logits,mus,covs,_ = utl.vec2gmm_params(self.ndims,self.ncomps,self.gmc.params)
         alphas = tf.math.softmax(logits)
         dim_remove = list(set(list(range(self.ndims)))-set(dim_list))
@@ -300,6 +317,46 @@ class GMCM:
                               marginals_list=marg_list_new, 
                               gmc=marg_gmc)
         return marg_gmcm_dist   
+    
+    def predict_prob(self,X):
+        """Return the posterior probabilities of components (C) given the data (X) i.e. P(C|X)
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_dims)
+
+        Returns
+        -------
+        posterior_prob : array, shape (n_samples, n_component),
+                         Rows summing to 1.
+        """
+        assert X.shape[1] == self.ndims, 'Dimension mismatch. The input data should have the shape n_samples x n_dims'
+        # extracting the base distribution (a GMM)
+        base_gmm = self.distribution.distribution
+        # mapping the input data to the base space (with the GMM base distribution) 
+        Z = self.distribution.bijector.inverse(X)
+        # posterior distribution of components give data (a categorical distribution with batch shape= Z.shape[0])
+        posterior = base_gmm.posterior_marginal(Z)
+        posterior_prob = tf.math.softmax(posterior.logits_parameter(),axis=1).numpy()
+        return posterior_prob
+    
+    def predict(self,X):
+        """Return the predicted component (C) given the data (X)
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_dims)
+
+        Returns
+        -------
+        comp_label : array, shape (n_samples, ), with component labels.
+        """
+        # getting the component probabilities given data X
+        posterior_probs = self.predict_prob(X)
+        comp_label = np.argmax(posterior_probs,axis=1).astype('int32')
+        return comp_label
+        
+        
     
 #     def get_conditional(self,obs_dim_list, value_list):
         
